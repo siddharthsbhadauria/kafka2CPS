@@ -63,18 +63,21 @@ public class notificationConsumerThread implements Runnable {
 					// Create a publisher instance with default settings bound to the topic
 					publisher = Publisher.newBuilder(topicName).build();
 
+					int partition = record.partition();
+					long offset = record.offset();
 					String message = record.value();
 
 					// convert message to bytes
 					ByteString data = ByteString.copyFromUtf8(message);
-					PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
+
+					PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).putAttributes("Kafka Topic", topic).putAttributes("Partition", Integer.toString(partition)).putAttributes("Offset", Long.toString(offset)).build();							
 
 					// Schedule a message to be published. Messages are automatically batched.
 					ApiFuture<String> future = publisher.publish(pubsubMessage);
 					System.out.println("Message Published: " + message);
 					futures.add(future);
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
+					System.out.println("IO Exception");
 					e.printStackTrace();
 				} finally {
 					// Wait on any pending requests
@@ -86,7 +89,6 @@ public class notificationConsumerThread implements Runnable {
 					} catch (ExecutionException e) {
 						e.printStackTrace();
 					}
-
 					for (String messageId : messageIds) {
 						System.out.println(messageId);
 					}

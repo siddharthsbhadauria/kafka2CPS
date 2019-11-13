@@ -12,15 +12,13 @@ public class kafkaToCpsMain {
 		String CPStopic = "from-kafka1";
 		int numberOfConsumer = 1;
 
-		if (args != null && args.length > 4) {
+		if (args != null && args.length >= 4) {
 			brokers = args[0];
 			groupId = args[1];
 			topic = args[2];
 			CPStopic = args[3];
 			numberOfConsumer = 1;
-
 		}
-
 		// Start group of Notification Consumers
 		notificationConsumerGroup consumerGroup = new notificationConsumerGroup(brokers, groupId, topic,
 				numberOfConsumer, CPStopic);
