@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Generate a GPG keypair
+gpg --gen-key
+
+# Generate a passphrase in memory
+passphrase=$(openssl rand -base64 32)
+
+# Store the passphrase in Google Cloud Secret Manager
+echo $passphrase | gcloud secrets create gpg-passphrase --data-file=-
+
+# Export the public key
+gpg --armor --export <email> > public_key.asc
+
+# Export the private key
+gpg --armor --export-secret-keys <email> > private_key.asc
