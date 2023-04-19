@@ -1,0 +1,6 @@
+from google.auth import credentials
+from google.cloud import kms_v1
+
+creds_dict = json.loads(credentials_json)
+creds = credentials.Credentials.from_service_account_info(creds_dict)
+client = kms_v1.KeyManagementServiceClient(credentials=creds)
