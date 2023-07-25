@@ -8,3 +8,16 @@ gcloud dataproc clusters create [CLUSTER_NAME] \
     --image-version=[IMAGE_VERSION] \
     --project=[YOUR_PROJECT_ID] \
     --impersonate-service-account=[SERVICE_ACCOUNT_EMAIL]
+
+
+
+gcloud auth activate-service-account --key-file=/path/to/service-account-key.json
+gcloud config set project [YOUR_PROJECT_ID]
+gcloud dataproc clusters create [CLUSTER_NAME] \
+    --region=europe-west2 \
+    --single-node \
+    --master-machine-type=n1-standard-1 \
+    --master-boot-disk-size=50GB \
+    --image-version=latest-debian-10 \
+    --project=[YOUR_PROJECT_ID] \
+    --impersonate-service-account=[SERVICE_ACCOUNT_EMAIL]
