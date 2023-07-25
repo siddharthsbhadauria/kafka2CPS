@@ -1,0 +1,24 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, explode, split
+
+# Initialize the Spark session
+spark = SparkSession.builder.appName("WordCount").getOrCreate()
+
+# Replace 'YOUR_BUCKET_NAME' and 'path/to/your/file.txt' with actual bucket and file path
+bucket_name = 'YOUR_BUCKET_NAME'
+file_path = 'gs://{}/path/to/your/file.txt'.format(bucket_name)
+
+# Read the file from GCP bucket into a DataFrame
+df = spark.read.text(file_path)
+
+# Split lines into words and explode the array of words into separate rows
+words_df = df.select(explode(split(col("value"), " ")).alias("word"))
+
+# Count the words
+word_count = words_df.count()
+
+# Display the word count
+print("Word count:", word_count)
+
+# Stop the Spark session
+spark.stop()
