@@ -1,0 +1,10 @@
+gcloud auth activate-service-account --key-file=/path/to/service-account-key.json
+gcloud config set project [YOUR_PROJECT_ID]
+gcloud dataproc clusters create [CLUSTER_NAME] \
+    --region=[REGION] \
+    --single-node \
+    --master-machine-type=[MASTER_MACHINE_TYPE] \
+    --master-boot-disk-size=[MASTER_DISK_SIZE] \
+    --image-version=[IMAGE_VERSION] \
+    --project=[YOUR_PROJECT_ID] \
+    --impersonate-service-account=[SERVICE_ACCOUNT_EMAIL]
