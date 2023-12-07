@@ -1,0 +1,45 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+    {
+      "name": "myblob",
+      "type": "blobTrigger",
+      "direction": "in",
+      "path": "your-container-name/{name}",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "name": "outputDatabase",
+      "type": "postgres",
+      "direction": "out",
+      "tableName": "your_table_name",
+      "connectionStringSetting": "PostgresConnectionString"
+    }
+  ]
+}
+
+
+import azure.functions as func
+from datetime import datetime
+
+def main(myblob: func.InputStream, outputDatabase: func.Out[func.Document]):
+    # Extract blob information
+    blob_name = myblob.name
+    blob_size = myblob.length
+
+    # Prepare data for database insertion
+    current_timestamp = datetime.utcnow().isoformat()
+    entry_data = {
+        "blob_name": blob_name,
+        "blob_size": blob_size,
+        "received_timestamp": current_timestamp
+    }
+
+    # Output the entry to the database
+    outputDatabase.set(entry_data)
+
+    # Log information
+    logging.info(f"Blob trigger function processed blob:\n"
+                 f"Blob Name: {blob_name}\n"
+                 f"Blob Size: {blob_size} bytes\n"
+                 f"Entry inserted into PostgreSQL database at {current_timestamp}")
