@@ -1,0 +1,32 @@
+import azure.functions as func
+from azure.storage.blob import BlobServiceClient, ContainerClient
+
+def copy_blob(source_connection_string, source_container_name, source_blob_name,
+             destination_connection_string, destination_container_name, destination_blob_name):
+    # Create clients for source and destination containers
+    source_blob_service_client = BlobServiceClient.from_connection_string(source_connection_string)
+    destination_blob_service_client = BlobServiceClient.from_connection_string(destination_connection_string)
+
+    source_container_client = source_blob_service_client.get_container_client(source_container_name)
+    destination_container_client = destination_blob_service_client.get_container_client(destination_container_name)
+
+    # Get the source blob
+    source_blob_client = source_container_client.get_blob_client(source_blob_name)
+
+    # Copy the blob to the destination container
+    destination_blob_client = destination_container_client.get_blob_client(destination_blob_name)
+    destination_blob_client.start_copy_from_url(source_blob_client.url)
+
+def main(req: func.HttpRequest) -> func.HttpResponse:
+    source_connection_string = "your_source_storage_account_connection_string"
+    source_container_name = "source_container_name"
+    source_blob_name = "source_blob_name"
+
+    destination_connection_string = "your_destination_storage_account_connection_string"
+    destination_container_name = "destination_container_name"
+    destination_blob_name = "destination_blob_name"
+
+    copy_blob(source_connection_string, source_container_name, source_blob_name,
+              destination_connection_string, destination_container_name, destination_blob_name)
+
+    return func.HttpResponse(f"Blob copied successfully from {source_blob_name} to {destination_blob_name}.")
