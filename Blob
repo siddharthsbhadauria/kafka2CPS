@@ -1,0 +1,49 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+    {
+      "name": "myblob",
+      "type": "blobTrigger",
+      "direction": "in",
+      "path": "{container}/{name}",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "name": "$return",
+      "type": "http",
+      "direction": "out"
+    }
+  ]
+}
+
+
+
+import os
+import azure.functions as func
+from azure.storage.blob import BlobServiceClient, ContainerClient
+from typing import Optional
+
+def main(myblob: func.InputStream, name: str, container: str) -> None:
+    source_connection_string = os.environ["SourceStorageConnectionString"]
+    destination_connection_string = os.environ["DestinationStorageConnectionString"]
+
+    # Use container parameter in your logic
+    source_container_name = container
+    destination_container_name = os.environ["DestinationContainerName"]
+
+    # Create BlobServiceClient instances
+    source_blob_service_client = BlobServiceClient.from_connection_string(source_connection_string)
+    destination_blob_service_client = BlobServiceClient.from_connection_string(destination_connection_string)
+
+    # Get source and destination container clients
+    source_container_client = source_blob_service_client.get_container_client(source_container_name)
+    destination_container_client = destination_blob_service_client.get_container_client(destination_container_name)
+
+    # Get the blob client for the source blob
+    source_blob_client = source_container_client.get_blob_client(name)
+
+    # Copy the blob to the destination container
+    destination_blob_client = destination_container_client.get_blob_client(name)
+    destination_blob_client.start_copy_from_url(source_blob_client.url)
+
+    print(f"Blob copied from {source_container_name}/{name} to {destination_container_name}/{name}")
