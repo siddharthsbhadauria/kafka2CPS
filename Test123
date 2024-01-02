@@ -1,0 +1,34 @@
+import os
+import logging
+import azure.functions as func
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+
+def main(blob: func.InputStream):
+    # Get environment variables
+    source_container_name = os.environ["SourceContainer"]
+    destination_container_name = os.environ["DestinationContainer"]
+    connection_string = os.environ["AzureWebJobsStorage"]
+
+    # Create BlobServiceClient
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+
+    # Get source and destination container clients
+    source_container_client = blob_service_client.get_container_client(source_container_name)
+    destination_container_client = blob_service_client.get_container_client(destination_container_name)
+
+    # Get blob name and create blob client
+    blob_name = blob.name
+    blob_client = source_container_client.get_blob_client(blob_name)
+
+    # Read content from source blob
+    blob_data = blob_client.download_blob()
+    blob_content = blob_data.readall()
+
+    # Upload content to destination container
+    destination_blob_client = destination_container_client.get_blob_client(blob_name)
+    destination_blob_client.upload_blob(blob_content)
+
+    # Optional: Delete the source blob if needed
+    # blob_client.delete_blob()
+
+    logging.info(f"Blob copied from {source_container_name}/{blob_name} to {destination_container_name}/{blob_name}")
