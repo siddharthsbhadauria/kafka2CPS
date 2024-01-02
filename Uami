@@ -1,0 +1,40 @@
+import os
+import azure.functions as func
+from azure.identity import ManagedIdentityCredential
+from azure.storage.blob import BlobServiceClient
+
+def copy_blob(source_blob_client, target_blob_client):
+    # Copy the blob from source to target
+    target_blob_client.start_copy_from_url(source_blob_client.url)
+    print(f"Blob copied from {source_blob_client.blob_name} to {target_blob_client.blob_name}")
+
+def main(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        # Parse the request for necessary information (adjust as needed)
+        source_container_name = req.params.get('sourceContainer')
+        source_blob_name = req.params.get('sourceBlob')
+        target_container_name = req.params.get('targetContainer')
+        target_blob_name = req.params.get('targetBlob')
+
+        # Use User-Assigned Managed Identity for authentication
+        managed_identity_client_id = "<your-user-assigned-identity-client-id>"
+        managed_identity_credential = ManagedIdentityCredential(client_id=managed_identity_client_id)
+
+        # Create a BlobServiceClient
+        blob_service_client = BlobServiceClient(account_url=f"https://{os.environ['STORAGE_ACCOUNT_NAME']}.blob.core.windows.net", credential=managed_identity_credential)
+
+        # Get a reference to the source container and blob
+        source_container_client = blob_service_client.get_container_client(source_container_name)
+        source_blob_client = source_container_client.get_blob_client(source_blob_name)
+
+        # Get a reference to the target container and blob
+        target_container_client = blob_service_client.get_container_client(target_container_name)
+        target_blob_client = target_container_client.get_blob_client(target_blob_name)
+
+        # Call the copy_blob function
+        copy_blob(source_blob_client, target_blob_client)
+
+        return func.HttpResponse(f"Blob copied from {source_blob_name} to {target_blob_name}", status_code=200)
+
+    except Exception as e:
+        return func.HttpResponse(f"Error: {str(e)}", status_code=500)
