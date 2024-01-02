@@ -1,0 +1,35 @@
+import os
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
+
+def main(req, res):
+    # Get your blob storage connection strings or use environment variables
+    source_account_name = os.environ["SOURCE_STORAGE_ACCOUNT_NAME"]
+    source_account_key = os.environ["SOURCE_STORAGE_ACCOUNT_KEY"]
+    source_container_name = "source_container"
+    source_blob_name = "source_blob"
+
+    destination_account_name = os.environ["DESTINATION_STORAGE_ACCOUNT_NAME"]
+    destination_account_key = os.environ["DESTINATION_STORAGE_ACCOUNT_KEY"]
+    destination_container_name = "destination_container"
+    destination_blob_name = "destination_blob"
+
+    # Authenticate using UAMI
+    credential = DefaultAzureCredential()
+
+    # Create blob service clients
+    source_blob_service_client = BlobServiceClient(account_url=f"https://{source_account_name}.blob.core.windows.net", credential=credential)
+    destination_blob_service_client = BlobServiceClient(account_url=f"https://{destination_account_name}.blob.core.windows.net", credential=credential)
+
+    # Get source blob client
+    source_blob_client = source_blob_service_client.get_blob_client(container=source_container_name, blob=source_blob_name)
+
+    # Get destination blob client
+    destination_blob_client = destination_blob_service_client.get_blob_client(container=destination_container_name, blob=destination_blob_name)
+
+    # Copy blob from source to destination
+    destination_blob_client.start_copy_from_url(source_blob_client.url)
+
+    # Add your desired response logic
+    res.status = 200
+    res.body = "Blob copy initiated successfully"
