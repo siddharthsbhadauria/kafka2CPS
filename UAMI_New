@@ -1,33 +1,35 @@
 import os
+import json
+import azure.functions as func
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 
-def main(req, res):
-    # Get your blob storage connection strings or use environment variables
-    source_account_name = os.environ["SOURCE_STORAGE_ACCOUNT_NAME"]
-    source_container_name = "source_container"
-    source_blob_name = "source_blob"
+def main(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        # Get source and destination blob details from the request
+        source_account_name = req.params.get('source_account_name')
+        source_container_name = req.params.get('source_container_name')
+        source_blob_name = req.params.get('source_blob_name')
 
-    destination_account_name = os.environ["DESTINATION_STORAGE_ACCOUNT_NAME"]
-    destination_container_name = "destination_container"
-    destination_blob_name = "destination_blob"
+        dest_account_name = req.params.get('dest_account_name')
+        dest_container_name = req.params.get('dest_container_name')
+        dest_blob_name = req.params.get('dest_blob_name')
 
-    # Use User-Assigned Managed Identity for authentication
-    uami_client_id = os.environ["UAMI_CLIENT_ID"]
+        # Get Managed Identity credentials
+        credential = DefaultAzureCredential()
 
-    # Create blob service clients for source and destination with UAMI
-    source_blob_service_client = BlobServiceClient(account_url=f"https://{source_account_name}.blob.core.windows.net", credential=DefaultAzureCredential(managed_identity_client_id=uami_client_id))
-    destination_blob_service_client = BlobServiceClient(account_url=f"https://{destination_account_name}.blob.core.windows.net", credential=DefaultAzureCredential(managed_identity_client_id=uami_client_id))
+        # Source blob
+        source_blob_service_client = BlobServiceClient(account_url=f"https://{source_account_name}.blob.core.windows.net", credential=credential)
+        source_blob_client = source_blob_service_client.get_blob_client(container=source_container_name, blob=source_blob_name)
 
-    # Get source blob client
-    source_blob_client = source_blob_service_client.get_blob_client(container=source_container_name, blob=source_blob_name)
+        # Destination blob
+        dest_blob_service_client = BlobServiceClient(account_url=f"https://{dest_account_name}.blob.core.windows.net", credential=credential)
+        dest_blob_client = dest_blob_service_client.get_blob_client(container=dest_container_name, blob=dest_blob_name)
 
-    # Get destination blob client
-    destination_blob_client = destination_blob_service_client.get_blob_client(container=destination_container_name, blob=destination_blob_name)
+        # Copy blob
+        dest_blob_client.start_copy_from_url(source_blob_client.url)
 
-    # Copy blob from source to destination
-    destination_blob_client.start_copy_from_url(source_blob_client.url)
+        return func.HttpResponse(f"Blob copy initiated from {source_blob_client.url} to {dest_blob_client.url}", status_code=200)
 
-    # Add your desired response logic
-    res.status = 200
-    res.body = "Blob copy initiated successfully"
+    except Exception as e:
+        return func.HttpResponse(f"Error: {str(e)}", status_code=500)
