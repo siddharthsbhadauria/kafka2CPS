@@ -1,7 +1,7 @@
 import os
 import json
 import azure.functions as func
-from azure.identity import DefaultAzureCredential
+from azure.identity import ManagedIdentityCredential
 from azure.storage.blob import BlobServiceClient
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
@@ -15,8 +15,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         dest_container_name = req.params.get('dest_container_name')
         dest_blob_name = req.params.get('dest_blob_name')
 
-        # Get Managed Identity credentials
-        credential = DefaultAzureCredential()
+        # Get User Assigned Managed Identity credentials
+        identity_client_id = os.environ["MSI_CLIENT_ID"]
+        credential = ManagedIdentityCredential(client_id=identity_client_id)
 
         # Source blob
         source_blob_service_client = BlobServiceClient(account_url=f"https://{source_account_name}.blob.core.windows.net", credential=credential)
