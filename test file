@@ -1,0 +1,34 @@
+import os
+from azure.identity import ManagedIdentityCredential
+from azure.storage.blob import BlobServiceClient
+import azure.functions as func
+
+def main(req: func.HttpRequest, res: func.HttpResponse) -> str:
+    # Replace with your User Assigned Managed Identity Credential ID
+    uami_credential_id = 'your_uami_credential_id'
+
+    # Create a Managed Identity credential using the Credential ID
+    managed_identity_credential = ManagedIdentityCredential(client_id=uami_credential_id)
+
+    # Use the credential to get a token for the storage account
+    token = managed_identity_credential.get_token('https://storage.azure.com/.default')
+
+    # Replace with your source and destination storage account URLs
+    source_blob_service_client = BlobServiceClient(account_url="your_source_storage_url", credential=token)
+    dest_blob_service_client = BlobServiceClient(account_url="your_destination_storage_url", credential=token)
+
+    container_name = "your_container_name"
+    source_container_client = source_blob_service_client.get_container_client(container_name)
+    dest_container_client = dest_blob_service_client.get_container_client(container_name)
+
+    # Add your logic to copy data between storage accounts using Managed Identity
+    # For example, list blobs in the source container and copy them to the destination container
+
+    for blob in source_container_client.list_blobs():
+        source_blob = source_container_client.get_blob_client(blob.name)
+        dest_blob_client = dest_container_client.get_blob_client(blob.name)
+
+        # Copy blob from source to destination
+        dest_blob_client.start_copy_from_url(source_blob.url)
+
+    return 'Data copied successfully!'
