@@ -1,0 +1,42 @@
+import os
+import azure.functions as func
+import psycopg2
+from azure.identity import ManagedIdentityCredential
+from urllib.parse import quote_plus
+
+def main(req: func.HttpRequest) -> func.HttpResponse:
+    # UAMI credentials
+    managed_identity = 'your_user_assigned_managed_identity_client_id'
+    credentials = ManagedIdentityCredential(client_id=managed_identity)
+
+    # Database connection parameters
+    db_host = 'your_postgres_server_name.postgres.database.azure.com'
+    db_port = '5432'
+    db_name = 'your_database_name'
+    db_user = 'your_username'
+
+    # Create a connection string with the token
+    token = credentials.get_token('https://ossrdbms-aad.database.windows.net/.default')
+    conn_str = f"postgresql://{db_user}:{quote_plus(token.token)}@{db_host}:{db_port}/{db_name}?sslmode=require"
+
+    try:
+        # Connect to PostgreSQL
+        conn = psycopg2.connect(conn_str)
+
+        # Create a cursor
+        cursor = conn.cursor()
+
+        # Insert a record (replace 'your_table' and 'your_data' accordingly)
+        cursor.execute("INSERT INTO your_table (column1, column2) VALUES (%s, %s)", ("value1", "value2"))
+
+        # Commit and close
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return func.HttpResponse("Record inserted successfully.", status_code=200)
+
+    except Exception as e:
+        return func.HttpResponse(f"Error: {str(e)}", status_code=500)
+
+# Call the function using an HTTP trigger
