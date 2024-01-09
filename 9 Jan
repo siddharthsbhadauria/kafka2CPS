@@ -1,0 +1,59 @@
+import csv
+import logging
+import azure.functions as func
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient, BlobClient
+
+def read_csv_metadata(metadata_blob_client):
+    metadata_content = metadata_blob_client.download_blob().readall().decode('utf-8')
+    csv_reader = csv.DictReader(metadata_content.splitlines())
+    return list(csv_reader)
+
+def read_csv_blob(blob_client):
+    blob_content = blob_client.download_blob().readall().decode('utf-8')
+    csv_reader = csv.reader(blob_content.splitlines())
+    return list(csv_reader)
+
+def copy_blob(source_blob_client, destination_blob_client):
+    destination_blob_client.upload_blob(source_blob_client.download_blob().readall())
+
+def process_file(source_blob_client, metadata_blob_client, destination_container_client):
+    try:
+        logging.info(f"Processing file: {source_blob_client.blob_name}")
+
+        metadata = read_csv_metadata(metadata_blob_client)
+        expected_count = int(next(row['count'] for row in metadata if row['name'] == source_blob_client.blob_name))
+
+        actual_csv_data = read_csv_blob(source_blob_client)
+
+        # Additional processing logic based on CSV data if needed
+
+        if expected_count == len(actual_csv_data):
+            destination_blob_client = destination_container_client.get_blob_client(source_blob_client.blob_name)
+            copy_blob(source_blob_client, destination_blob_client)
+            logging.info(f"File processed successfully: {source_blob_client.blob_name}")
+        else:
+            logging.warning(f"File {source_blob_client.blob_name} has unexpected row count.")
+
+    except Exception as e:
+        logging.error(f"An error occurred while processing file {source_blob_client.blob_name}: {str(e)}")
+
+def main(myblob: func.InputStream):
+    try:
+        source_container_name = "source-container"
+        metadata_container_name = "metadata-container"
+        destination_container_name = "destination-container"
+
+        # Use DefaultAzureCredential to authenticate with managed identity
+        credential = DefaultAzureCredential()
+
+        blob_service_client = BlobServiceClient(account_url="https://<storage_account_name>.blob.core.windows.net", credential=credential)
+
+        source_blob_client = blob_service_client.get_blob_client(source_container_name, myblob.name)
+        metadata_blob_client = blob_service_client.get_blob_client(metadata_container_name, myblob.name)
+        destination_container_client = blob_service_client.get_container_client(destination_container_name)
+
+        process_file(source_blob_client, metadata_blob_client, destination_container_client)
+
+    except Exception as e:
+        logging.error(f"An error occurred: {str(e)}")
