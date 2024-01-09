@@ -1,0 +1,73 @@
+import os
+import azure.functions as func
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+from azure.identity import ManagedIdentityCredential
+
+def main(blob: func.InputStream):
+    # Extract app-id from the data file name
+    app_id = get_app_id(blob.name)
+
+    # Read metadata file
+    metadata_folder = "Metadata"
+    metadata_filename = f"Metadata_{app_id}.csv"
+    metadata_path = os.path.join(metadata_folder, metadata_filename)
+
+    metadata_blob = get_blob(metadata_path)
+
+    try:
+        metadata_content = metadata_blob.download_blob().readall().decode('utf-8').splitlines()
+        metadata_line_count = len(metadata_content)
+        print("Metadata file successfully loaded.")
+        print(f"Metadata line count: {metadata_line_count}")
+
+        # Get line count of the data file
+        data_line_count = get_blob_line_count(blob)
+
+        # Compare line counts
+        if data_line_count == metadata_line_count:
+            # Copy the file to a new storage account (replace 'YourDestinationStorageAccountUrl' and 'AppDestination' with your actual values)
+            copy_blob(blob, f"App-{app_id}", "YourDestinationStorageAccountUrl")
+            print(f"File copied successfully to 'App-{app_id}' storage account.")
+        else:
+            print("Line counts do not match. File not copied.")
+
+    except FileNotFoundError:
+        print(f"Error: Metadata file '{metadata_path}' not found.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+
+def get_app_id(blob_name):
+    # Logic to extract app-id from the data file name (adjust as per your naming convention)
+    # Example: extract app-id from "filename_ib_<app-id>.csv"
+    return blob_name.split('_')[3].split('.')[0]
+
+def get_blob(blob_path):
+    # Connect to your source storage account using User Assigned Managed Identity
+    blob_service_client = BlobServiceClient(account_url="YourSourceStorageAccountUrl", credential=ManagedIdentityCredential())
+
+    # Get the container and blob clients
+    container_client = blob_service_client.get_container_client("yourcontainername")
+    blob_client = container_client.get_blob_client(blob=blob_path)
+
+    return blob_client
+
+def get_blob_line_count(blob):
+    # Get line count of the blob without loading the entire content into memory
+    blob_properties = blob.get_blob_properties()
+    return blob_properties.size / blob_properties.content_settings.content_type.count('\n')
+
+def copy_blob(source_blob, destination_container_name, destination_storage_account_url):
+    # Connect to your destination storage account using User Assigned Managed Identity
+    destination_blob_service_client = BlobServiceClient(account_url=destination_storage_account_url, credential=ManagedIdentityCredential())
+
+    # Get source blob and container
+    source_container_client = source_blob.container_client
+    source_blob_client = source_container_client.get_blob_client(blob=source_blob.blob_name)
+
+    # Get or create destination container
+    destination_container_client = destination_blob_service_client.get_container_client(destination_container_name)
+    destination_container_client.create_container()
+
+    # Copy blob to destination
+    destination_blob_client = destination_container_client.get_blob_client(blob=source_blob.blob_name)
+    destination_blob_client.start_copy_from_url(source_blob_client.url)
