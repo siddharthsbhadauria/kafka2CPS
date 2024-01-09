@@ -1,0 +1,60 @@
+import os
+import logging
+import pandas as pd
+import azure.functions as func
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
+
+def main(blob: func.InputStream, metadata_blob: func.InputStream) -> None:
+    # Use managed identity to authenticate
+    credential = DefaultAzureCredential()
+
+    # Define your Azure Storage account names and container names
+    data_account_name = "<your_data_account_name>"
+    metadata_account_name = "<your_metadata_account_name>"
+    new_account_name = "<your_new_account_name>"
+    data_container_name = "<your_data_container_name>"
+    metadata_container_name = "<your_metadata_container_name>"
+
+    # Set up BlobServiceClients
+    blob_service_client_data = BlobServiceClient(account_url=f"https://{data_account_name}.blob.core.windows.net", credential=credential)
+    blob_service_client_metadata = BlobServiceClient(account_url=f"https://{metadata_account_name}.blob.core.windows.net", credential=credential)
+    blob_service_client_new_account = BlobServiceClient(account_url=f"https://{new_account_name}.blob.core.windows.net", credential=credential)
+
+    try:
+        # Get the blob client for the metadata file
+        metadata_blob_client = blob_service_client_metadata.get_container_client(metadata_container_name)\
+            .get_blob_client(metadata_blob.name)
+
+        # Download the metadata file
+        metadata_content = metadata_blob_client.download_blob().readall().decode('utf-8')
+
+        # Parse the metadata content into a DataFrame
+        metadata_df = pd.read_csv(pd.compat.StringIO(metadata_content))
+
+        # Parse the data blob content into a DataFrame
+        data_df = pd.read_csv(pd.compat.StringIO(blob.read().decode('utf-8')))
+
+        # Extract filename and count from metadata
+        filename = metadata_df['filename'].iloc[0]
+        expected_count = metadata_df['count'].iloc[0]
+
+        # Count rows in the data file
+        actual_count = len(data_df)
+
+        # Compare counts
+        if actual_count == expected_count:
+            # Extract the second part of the filename to determine the new storage account name
+            new_storage_account_name = filename.split('_')[1]
+
+            # Upload the data blob to the new storage account
+            new_blob_client = blob_service_client_new_account.get_container_client(new_storage_account_name)\
+                .get_blob_client(filename)
+            new_blob_client.upload_blob(blob.read())
+
+            logging.info(f"File {filename} successfully copied to new storage account ({new_storage_account_name}).")
+        else:
+            logging.warning(f"Count mismatch for file {filename}. Actual count: {actual_count}, Expected count: {expected_count}.")
+
+    except Exception as e:
+        logging.error(f"An error occurred: {str(e)}")
