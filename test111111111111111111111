@@ -1,0 +1,92 @@
+import os
+import azure.functions as func
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
+
+def get_blob_service_clients():
+    # Initialize the BlobServiceClient using UAMI
+    uami_credential = DefaultAzureCredential()
+    source_blob_service_client = BlobServiceClient(account_url=os.environ['SourceStorageAccountUrl'], credential=uami_credential)
+    
+    return source_blob_service_client
+
+def download_metadata_blob(source_blob_client):
+    # Download the metadata file content
+    metadata_content = source_blob_client.download_blob().readall().decode('utf-8')
+    return metadata_content
+
+def retrieve_metadata_count(metadata_content, blob_name):
+    # Retrieve count from metadata file using the filename (not the app-id)
+    metadata_lines = metadata_content.split('\n')
+    metadata_count = 0
+
+    for line in metadata_lines:
+        if line.startswith(blob_name):
+            metadata_count = int(line.split(',')[1])
+            break
+
+    return metadata_count
+
+def get_target_blob_service_client(app_id):
+    # Dynamically construct the target storage account URL based on the app-id
+    target_storage_account_url = f"https://{os.environ['TargetStorageAccountNamePrefix']}{app_id}.blob.core.windows.net"
+    
+    # Initialize the BlobServiceClient using UAMI
+    uami_credential = DefaultAzureCredential()
+    target_blob_service_client = BlobServiceClient(account_url=target_storage_account_url, credential=uami_credential)
+    
+    return target_blob_service_client
+
+def upload_blob(target_blob_container_client, target_blob_name, myblob):
+    # Upload the data file to the target container
+    target_blob_client = target_blob_container_client.get_blob_client(target_blob_name)
+    target_blob_client.upload_blob(myblob)
+
+def count_lines(file_path):
+    # Count the number of lines in a file without loading the entire file into memory
+    with open(file_path, 'rb') as file:
+        lines = sum(1 for _ in file)
+    return lines
+
+def main(myblob: func.InputStream):
+    # Get the name of the source blob container and blob name
+    source_container_name = os.environ['SourceContainerName']
+    blob_name = myblob.name
+
+    # Extract app-id from the data file name
+    app_id = blob_name.split('_')[2].split('.')[0]
+
+    # Initialize BlobServiceClients
+    source_blob_service_client = get_blob_service_clients()
+
+    # Get a reference to the source blob
+    source_blob_container_client = source_blob_service_client.get_container_client(source_container_name)
+    source_blob_client = source_blob_container_client.get_blob_client(blob_name)
+
+    # Use app-id to identify the corresponding metadata file
+    metadata_blob_name = f"metadata_{app_id}.csv"
+    metadata_blob_client = source_blob_container_client.get_blob_client(metadata_blob_name)
+
+    # Download the metadata file content
+    metadata_content = download_metadata_blob(metadata_blob_client)
+
+    # Retrieve count from metadata file using the filename (not the app-id)
+    metadata_count = retrieve_metadata_count(metadata_content, blob_name)
+
+    # Retrieve the count of lines in the data file without loading the entire file into memory
+    data_lines_count = count_lines(myblob.uri)
+
+    # Dynamically construct the target blob service client based on app-id
+    target_blob_service_client = get_target_blob_service_client(app_id)
+
+    # Construct the target container name based on app-id
+    target_container_name = f"{os.environ['TargetContainerNamePrefix']}{app_id}"
+    target_blob_container_client = target_blob_service_client.get_container_client(target_container_name)
+    target_blob_name = f"processed/{blob_name}"
+
+    # If counts match, copy the data file to the destination container
+    if metadata_count == data_lines_count:
+        # Upload the data file to the target container
+        upload_blob(target_blob_container_client, target_blob_name, myblob)
+
+        # You can add additional logging or notification logic here if needed
