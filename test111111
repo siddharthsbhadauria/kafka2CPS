@@ -1,0 +1,55 @@
+import os
+import azure.functions as func
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+from azure.identity import ManagedIdentityCredential
+import pandas as pd
+
+def main(blob: func.InputStream):
+    # Extract app-id from the data file name
+    app_id = get_app_id(blob.name)
+
+    if app_id is not None:
+        # Read metadata file
+        metadata_folder = "Metadata"
+        metadata_filename = f"Metadata_{app_id}.csv"
+        metadata_path = os.path.join(metadata_folder, metadata_filename)
+
+        metadata_blob = get_blob(metadata_path)
+
+        try:
+            metadata_df = pd.read_csv(metadata_blob.download_blob().content_as_text())
+            print("Metadata file successfully loaded.")
+            print(metadata_df)
+
+            # Get line count of the data file
+            data_line_count = get_blob_line_count(blob)
+
+            # Compare line counts
+            if data_line_count == metadata_df['line_count'][0]:
+                # Copy the file to a new storage account (replace 'YourDestinationStorageAccountUrl' and 'AppDestination' with your actual values)
+                copy_blob(blob, f"App-{app_id}", "YourDestinationStorageAccountUrl")
+                print(f"File copied successfully to 'App-{app_id}' storage account.")
+            else:
+                print("Line counts do not match. File not copied.")
+
+        except FileNotFoundError:
+            print(f"Error: Metadata file '{metadata_path}' not found.")
+        except pd.errors.EmptyDataError:
+            print(f"Error: Metadata file '{metadata_path}' is empty.")
+        except Exception as e:
+            print(f"An error occurred: {str(e)}")
+    else:
+        print("Unable to extract app ID from the data file name.")
+
+def get_app_id(blob_name):
+    # Logic to dynamically extract app-id from the data file name
+    # Example: extract app-id from "filename_ib_<app-id>_yyymmdd_1.csv"
+    parts = blob_name.split('_')
+
+    for part in parts:
+        if part.startswith('<app-id>') and len(part) > len('<app-id>'):
+            return part[len('<app-id>'):]
+
+    return None
+
+# The rest of the code remains unchanged
