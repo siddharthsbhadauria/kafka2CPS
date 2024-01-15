@@ -1,0 +1,34 @@
+import csv
+import random
+import string
+
+def create_test_csv(file_path, num_rows, num_columns):
+    with open(file_path, 'w', newline='') as csvfile:
+        csv_writer = csv.writer(csvfile)
+
+        # Generate header with column names
+        header = ['Column{}'.format(i+1) for i in range(num_columns)]
+        csv_writer.writerow(header)
+
+        # Generate random data for the specified number of rows and columns
+        for _ in range(num_rows):
+            row_data = [random.randint(1, 100) for _ in range(num_columns)]
+            csv_writer.writerow(row_data)
+
+def get_csv_info(file_path):
+    with open(file_path, 'r') as csvfile:
+        csv_reader = csv.reader(csvfile)
+        header = next(csv_reader)  # Read the header
+
+        # Get row count
+        row_count = sum(1 for row in csv_reader)
+
+        return header, row_count
+
+# Example usage:
+csv_file_path = 'test_file.csv'
+create_test_csv(csv_file_path, 5, 3)
+header, row_count = get_csv_info(csv_file_path)
+
+print(f"CSV Header: {header}")
+print(f"Row Count: {row_count}")
