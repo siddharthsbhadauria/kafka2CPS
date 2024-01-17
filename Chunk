@@ -1,0 +1,43 @@
+import azure.functions as func
+from azure.storage.blob import BlobServiceClient, BlobClient
+import pandas as pd
+import io
+
+def count_lines_in_chunks(csv_content: str, chunk_size: int) -> int:
+    line_count = 0
+
+    # Use StringIO to create a file-like object from the string content
+    csv_io = io.StringIO(csv_content)
+
+    # Process the CSV file in chunks without considering header
+    for chunk in pd.read_csv(csv_io, header=None, chunksize=chunk_size):
+        line_count += len(chunk)
+
+    return line_count
+
+def main(blob: func.InputStream) -> None:
+    try:
+        # Assuming you already have blob_service_client and blob_client instances
+        # Replace "your-container" and "your-file.csv" with your actual container and file names
+        container_name = "your-container"
+        blob_name = "your-file.csv"
+
+        # Get the blob client
+        blob_service_client = BlobServiceClient.from_connection_string("your_connection_string")
+        blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+
+        # Define your chunk size (e.g., 150MB)
+        chunk_size = 150 * 1024 * 1024
+
+        # Read the CSV file content from the blob
+        csv_content = blob_client.download_blob().readall().decode('utf-8')
+
+        # Count lines in chunks without considering header
+        line_count = count_lines_in_chunks(csv_content, chunk_size)
+
+        # You can now use line_count as needed, for example, logging it
+        logging.info(f"Line count: {line_count}")
+
+    except Exception as e:
+        # Handle any potential errors during processing
+        logging.error(f"Error processing file: {str(e)}")
