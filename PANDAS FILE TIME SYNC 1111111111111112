@@ -1,0 +1,75 @@
+import azure.functions as func
+import pandas as pd
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+from io import StringIO
+import time
+
+def copy_blob(source_blob, destination_blob_client):
+    destination_blob_client.start_copy_from_url(source_blob.url)
+
+def read_metadata_from_variable(metadata_content, filename):
+    # Simulate reading from a file-like object
+    df = pd.read_csv(StringIO(metadata_content), header=None, names=['filename', 'line count', 'region'])
+    filtered_files = df[df['filename'].str.startswith(filename + "_")]
+    return filtered_files
+
+def blob_exists(blob_client, max_attempts=2, delay_seconds=20):
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            blob_client.get_blob_properties()
+            return True
+        except:
+            attempts += 1
+            time.sleep(delay_seconds)
+    return False
+
+def main(req: func.HttpRequest) -> func.HttpResponse:
+    filename = req.params.get('filename')
+    metadata_content = "your_metadata_content_variable"  # Replace with your actual variable containing metadata content
+
+    # Assuming you have your storage account connection strings
+    source_connection_string = "your_source_storage_account_connection_string"
+    target_connection_string = "your_target_storage_account_connection_string"
+
+    source_container_name = "your_source_container_name"
+    target_container_name = "your_target_container_name"
+
+    source_blob_service_client = BlobServiceClient.from_connection_string(source_connection_string)
+    target_blob_service_client = BlobServiceClient.from_connection_string(target_connection_string)
+
+    # Get or create the source container client outside the loop
+    source_container_client = source_blob_service_client.get_container_client(source_container_name)
+
+    metadata = read_metadata_from_variable(metadata_content, filename)
+
+    # Parameters for blob_exists function
+    max_attempts = int(req.params.get('max_attempts', default='2'))
+    delay_seconds = int(req.params.get('delay_seconds', default='20'))
+
+    for index, row in metadata.iterrows():
+        current_filename = row['filename']
+        line_count = row['line count']
+        region = row['region']
+
+        # Get the source blob client outside the loop
+        source_blob = source_container_client.get_blob_client(current_filename)
+
+        # Check if the blob exists in the source storage with retries
+        if blob_exists(source_blob, max_attempts=max_attempts, delay_seconds=delay_seconds):
+            # Your logic using line_count and region in a different function
+            # For example, you can print them or pass them to another function
+            print(f"Processing {current_filename} with Line Count: {line_count}, Region: {region}")
+
+            # Get or create the target container client outside the loop
+            target_container_client = target_blob_service_client.get_container_client(target_container_name)
+
+            target_blob = target_container_client.get_blob_client(current_filename)
+
+            # Copy the blob to the target container
+            copy_blob(source_blob, target_blob)
+        else:
+            # Log and skip if the file is not found in the source storage
+            print(f"File {current_filename} not found in the source storage after retries. Skipping...")
+
+    return func.HttpResponse(f"Copied files with prefix {filename} to the target storage account.", status_code=200)
