@@ -1,0 +1,55 @@
+import azure.functions as func
+import pandas as pd
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+from io import StringIO
+
+def copy_blob(source_blob, destination_container_client, destination_blob_name):
+    source_blob_client = BlobClient.from_connection_string(source_blob['connection_string'], container_name=source_blob['container_name'], blob_name=source_blob['blob_name'])
+    destination_blob_client = destination_container_client.get_blob_client(destination_blob_name)
+
+    destination_blob_client.start_copy_from_url(source_blob_client.url)
+
+def read_metadata_from_variable(metadata_content, filename):
+    # Simulate reading from a file-like object
+    df = pd.read_csv(StringIO(metadata_content), header=None, names=['filename', 'line count', 'region'])
+    filtered_files = df[df['filename'].str.startswith(filename + "_")]
+    return filtered_files
+
+def main(req: func.HttpRequest) -> func.HttpResponse:
+    filename = req.params.get('filename')
+    metadata_content = "your_metadata_content_variable"  # Replace with your actual variable containing metadata content
+
+    # Assuming you have your storage account connection strings
+    source_connection_string = "your_source_storage_account_connection_string"
+    target_connection_string = "your_target_storage_account_connection_string"
+
+    source_container_name = "your_source_container_name"
+    target_container_name = "your_target_container_name"
+
+    source_blob_service_client = BlobServiceClient.from_connection_string(source_connection_string)
+    target_blob_service_client = BlobServiceClient.from_connection_string(target_connection_string)
+
+    source_container_client = source_blob_service_client.get_container_client(source_container_name)
+    target_container_client = target_blob_service_client.get_container_client(target_container_name)
+
+    metadata = read_metadata_from_variable(metadata_content, filename)
+
+    for index, row in metadata.iterrows():
+        current_filename = row['filename']
+        line_count = row['line count']
+        region = row['region']
+
+        # Your logic using line_count and region in a different function
+        # For example, you can print them or pass them to another function
+        print(f"Processing {current_filename} with Line Count: {line_count}, Region: {region}")
+
+        source_blob = {
+            'connection_string': source_connection_string,
+            'container_name': source_container_name,
+            'blob_name': current_filename
+        }
+
+        # Copy the blob to the target container
+        copy_blob(source_blob, target_container_client, current_filename)
+
+    return func.HttpResponse(f"Copied files with prefix {filename} to the target storage account.", status_code=200)
