@@ -1,0 +1,60 @@
+import csv
+from faker import Faker
+from concurrent.futures import ThreadPoolExecutor
+import os
+
+fake = Faker()
+
+def generate_row_data(columns):
+    return [fake.word() for _ in range(columns)]
+
+def write_csv_row(filename, header, row_data):
+    mode = 'w' if not os.path.exists(filename) else 'a'
+    with open(filename, mode, newline='') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        if mode == 'w':
+            csv_writer.writerow(header)
+        csv_writer.writerow(row_data)
+
+def create_and_merge_csvs(total_rows, columns, num_files=4, num_threads=4):
+    # Create unique filenames for each thread
+    filenames = [f'temp_file_{i}.csv' for i in range(num_files)]
+
+    # Use ThreadPoolExecutor to create CSV files concurrently
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        for i in range(num_files):
+            header = [f'Column {i+1}' for i in range(columns)]
+            # Generate and write rows concurrently to separate files
+            for _ in range(total_rows // num_files):
+                row_data = generate_row_data(columns)
+                executor.submit(write_csv_row, filenames[i], header, row_data)
+
+    # Merge the files into a single file
+    merge_files(filenames, 'output_merged.csv')
+
+    # Clean up temporary files
+    for filename in filenames:
+        os.remove(filename)
+
+    print(f'Files merged successfully into output_merged.csv.')
+
+def merge_files(input_files, output_file):
+    with open(output_file, 'w', newline='') as output_csv:
+        output_writer = csv.writer(output_csv)
+
+        # Write header to the output file
+        with open(input_files[0], 'r') as first_input:
+            header = csv.reader(first_input).__next__()
+            output_writer.writerow(header)
+
+        # Append data from each input file to the output file
+        for input_file in input_files:
+            with open(input_file, 'r') as input_csv:
+                csv_reader = csv.reader(input_csv)
+                # Skip the header in subsequent files
+                next(csv_reader, None)
+                for row in csv_reader:
+                    output_writer.writerow(row)
+
+# Example: Create and merge CSVs with 100,000 rows, 10 columns, 4 files, and 8 threads
+create_and_merge_csvs(100000, 10, num_files=4, num_threads=8)
