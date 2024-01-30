@@ -1,0 +1,73 @@
+## Blob Triggered Azure Function Documentation
+
+### Overview
+
+This documentation outlines the setup and functionality of a Blob Triggered Azure Function designed to process JSON files in conjunction with metadata files. The function extracts relevant information from the metadata file and copies specified files to a new storage account. Additionally, a record of these actions is audited into a PostgreSQL database.
+
+### Function Components
+
+1. **Blob Trigger:**
+   - The function is triggered by the creation of a JSON file in the specified blob storage container.
+
+2. **Metadata Check:**
+   - Upon trigger, the function retrieves the metadata file with a similar name to the triggered JSON file.
+
+3. **File Extraction and Copy:**
+   - Extracts filenames and metadata from the metadata file.
+   - Copies files listed in metadata to a new storage account.
+
+4. **Auditing:**
+   - Records information about the copied files, including filename, metadata, and any relevant statistics (count or size), into a PostgreSQL database.
+
+### Configuration
+
+#### Azure Resources
+
+1. **Blob Storage:**
+   - Ensure the blob storage account contains two containers: one for JSON files and another for metadata files.
+
+2. **Storage Account (Destination):**
+   - Set up a new storage account to copy files.
+
+3. **PostgreSQL Database:**
+   - Create a PostgreSQL database to store audit records.
+
+#### Azure Function Settings
+
+1. **Blob Trigger Binding:**
+   - Configure the trigger to listen for JSON file creations in the designated blob container.
+
+2. **Storage Account Connections:**
+   - Set up connections to both the source and destination storage accounts.
+
+3. **PostgreSQL Connection:**
+   - Configure connection strings for the PostgreSQL database.
+
+### Environment Variables
+
+Set the following environment variables in your Azure Function App settings:
+
+- `SOURCE_STORAGE_CONNECTION_STRING`: Connection string for the source blob storage account.
+- `DESTINATION_STORAGE_CONNECTION_STRING`: Connection string for the destination storage account.
+- `POSTGRES_CONNECTION_STRING`: Connection string for the PostgreSQL database.
+
+### Code Structure
+
+The function code should include logic for:
+- Extracting metadata from the corresponding file.
+- Copying files to the destination storage account.
+- Recording audit information into the PostgreSQL database.
+
+### Deployment
+
+Deploy the Azure Function and associated resources to your Azure subscription.
+
+### Monitoring and Troubleshooting
+
+- Monitor Azure Function logs for any errors or unexpected behavior.
+- Ensure that the required permissions are set for the storage accounts and PostgreSQL database.
+- Check network configurations to ensure proper communication between resources.
+
+### Conclusion
+
+This Blob Triggered Azure Function provides an automated solution for processing JSON files, copying specified files, and maintaining an audit trail in a PostgreSQL database. Adjustments to metadata formats or additional functionalities can be made based on specific use cases.
