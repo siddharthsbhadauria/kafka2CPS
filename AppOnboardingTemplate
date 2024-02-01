@@ -1,0 +1,27 @@
+## App Onboarding Template
+
+### Name
+<!-- Provide the name of the app -->
+<input type="text" name="app_name" required>
+
+### Use Case
+<!-- Select the applicable use cases for the app -->
+- [ ] Feature A
+- [ ] Feature B
+- [ ] Feature C
+- [ ] Other (specify): <input type="text" name="other_use_case">
+
+### Expected Go Live Date
+<!-- Choose the expected go-live date for the app -->
+<input type="date" name="go_live_date" required>
+
+### Any More Information
+<!-- Share any additional information or specific requirements -->
+<textarea name="additional_info" rows="4"></textarea>
+
+### Checklist
+<!-- Ensure all relevant steps are completed before closing the issue -->
+- [ ] App name provided
+- [ ] Use cases selected
+- [ ] Expected go-live date specified
+- [ ] Additional information provided
