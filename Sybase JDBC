@@ -1,0 +1,25 @@
+import jaydebeapi
+
+# Connection parameters
+jdbc_url = "jdbc:sybase:Tds:host:port/database"
+jdbc_driver_jar = "/path/to/your/jdbc/sybase-jdbc.jar"
+jdbc_driver_class = "com.sybase.jdbc4.jdbc.SybDriver"
+username = "your_username"
+password = "your_password"
+
+# Establish the connection
+connection = jaydebeapi.connect(jdbc_driver_class, jdbc_url, [username, password], jdbc_driver_jar)
+
+# Create a cursor
+cursor = connection.cursor()
+
+# Execute a query
+cursor.execute("SELECT * FROM your_table")
+
+# Fetch and print results
+for row in cursor.fetchall():
+    print(row)
+
+# Close cursor and connection
+cursor.close()
+connection.close()
