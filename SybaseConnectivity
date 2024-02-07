@@ -1,0 +1,46 @@
+import pyodbc
+
+# Connection parameters
+server = 'your_server'
+database = 'your_database'
+username = 'your_username'
+password = 'your_password'
+
+# Proxy settings
+proxy_server = 'proxy_server'
+proxy_port = 'proxy_port'
+
+# Connection string with proxy settings
+connection_string = (
+    f'DRIVER=ODBC Driver for {database};'
+    f'SERVER={server};'
+    f'DATABASE={database};'
+    f'UID={username};'
+    f'PWD={password};'
+    f'PROXYHOST={proxy_server};'
+    f'PROXYPORT={proxy_port};'
+)
+
+try:
+    # Connect to the database
+    connection = pyodbc.connect(connection_string)
+
+    # Create a cursor object
+    cursor = connection.cursor()
+
+    # Execute a sample query
+    cursor.execute("SELECT * FROM your_table")
+
+    # Fetch and print the results
+    rows = cursor.fetchall()
+    for row in rows:
+        print(row)
+
+    # Close cursor and connection
+    cursor.close()
+    connection.close()
+
+except pyodbc.Error as e:
+    print(f"Database error: {e}")
+except Exception as e:
+    print(f"Error: {e}")
