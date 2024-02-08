@@ -1,0 +1,43 @@
+import os
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
+
+def copy_blob_and_overwrite(req):
+    try:
+        # Parse request body for necessary parameters
+        req_body = req.get_json()
+        account_url = req_body.get('account_url')
+        container_name = req_body.get('container_name')
+        blob_name = req_body.get('blob_name')
+
+        # Create a DefaultAzureCredential for authentication
+        credential = DefaultAzureCredential()
+
+        # Create a BlobServiceClient using the storage account URL and UAMI for authentication
+        blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
+
+        # Get the blob client for the source blob
+        source_blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+
+        # Download the blob's content to a local temporary file
+        with open("/tmp/temporary_blob_file", "wb") as file:
+            download_stream = source_blob_client.download_blob()
+            file.write(download_stream.readall())
+
+        # Get the blob client for the destination blob
+        destination_blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+
+        # Upload the local temporary file to overwrite the destination blob
+        with open("/tmp/temporary_blob_file", "rb") as file:
+            destination_blob_client.upload_blob(file, overwrite=True)
+
+        # Delete the temporary file
+        os.remove("/tmp/temporary_blob_file")
+
+        return f"Blob '{blob_name}' copied and overwritten successfully.", 200
+    except Exception as e:
+        return str(e), 500
+
+# HTTP trigger function
+def main(req: func.HttpRequest) -> func.HttpResponse:
+    return copy_blob_and_overwrite(req)
