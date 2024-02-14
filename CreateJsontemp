@@ -1,0 +1,39 @@
+from azure.storage.blob import BlobServiceClient
+import json
+from datetime import datetime
+
+# Assuming your DataFrame is named df
+# Group by Metric Type and calculate sum of sizes and counts
+grouped = df[~df['Filename'].str.endswith('.json')].groupby('Metric Type').agg({'Metric': 'sum'})
+
+# Calculate number of files (excluding the appended file)
+num_files = len(df[~df['Filename'].str.endswith('.json')]['Filename'].unique())
+
+# Extract filenames into an array (excluding the appended file)
+filenames = df[~df['Filename'].str.endswith('.json')]['Filename'].unique().tolist()
+
+# Azure Storage account connection string
+connection_string = "<your_connection_string>"
+container_name = "<your_container_name>"
+blob_name = "<your_blob_name>.json"
+
+# Convert dictionary to JSON
+json_data = {
+    'Sum of sizes': grouped.loc['size', 'Metric'],
+    'Sum of counts': grouped.loc['count', 'Metric'],
+    'No of files': num_files,
+    'Filenames': filenames,
+    'Current date': datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+}
+json_output = json.dumps(json_data)
+
+# Create BlobServiceClient
+blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+
+# Create a blob client using the local file name as the name for the blob
+blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+
+# Upload the created json data to the blob
+blob_client.upload_blob(json_output, overwrite=True)
+
+print("JSON data uploaded to Azure Storage Blob successfully.")
