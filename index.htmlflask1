@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload</title>
+</head>
+<body>
+    <h1>File Upload</h1>
+    <form action="/upload" method="post">
+        <label for="source_file_path">Source File Path:</label><br>
+        <input type="text" id="source_file_path" name="source_file_path"><br>
+        
+        <label for="target_path">Target Path:</label><br>
+        <input type="text" id="target_path" name="target_path"><br>
+        
+        <label for="pem_file_path">PEM File Path:</label><br>
+        <input type="text" id="pem_file_path" name="pem_file_path"><br>
+        
+        <label for="client_id">Client ID:</label><br>
+        <input type="text" id="client_id" name="client_id"><br>
+        
+        <label for="client_storage_account_name">Client Storage Account Name:</label><br>
+        <input type="text" id="client_storage_account_name" name="client_storage_account_name"><br><br>
+        
+        <input type="submit" value="Upload File">
+    </form>
+</body>
+</html>
